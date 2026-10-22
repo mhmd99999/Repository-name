@@ -1,0 +1,34 @@
+name: android
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+
+      - name: Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: android-runner
+
+      - name: Start Android
+        run: |
+          docker run -d --name android \
+            -p 6080:6080 -p 5555:5555 \
+            -e EMULATOR_DEVICE="Samsung Galaxy S10" \
+            -e WEB_VNC=true \
+            --device /dev/kvm \
+            budtmo/docker-android:emulator_11.0
+
+      - name: Keep alive
+        run: |
+          sleep 60
+          docker logs android | tail -20
+          sleep 21000
